@@ -1,0 +1,1 @@
+"%ProgramFiles%\scilab-5.5.2\bin\scilex.exe" -nb -args %1 %2 %3 -e "exec('script.sce');exit;"
