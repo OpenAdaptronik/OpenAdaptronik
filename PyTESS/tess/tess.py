@@ -112,11 +112,11 @@ if __name__ == '__main__':
     realpeakloc = []
     numrealpeaks = numpy.array([0]*len(tout))
     isrealpeakfromTF = []
-    peakamp = numpy.array([0]*len(tout))
-    peakloc = numpy.array([0]*len(tout))
-    gap = [[]*len(tout)]
-    collectivepeaks = []*len(tout)
-    ispeakfromTF = []*len(tout)
+    peakamp = [0]*len(tout)
+    peakloc = [0]*len(tout)
+    gap = [[]]*len(tout)
+    collectivepeaks = [[]]*len(tout)
+    ispeakfromTF = [False]*len(tout)
     for i in range(len(tout)):
         peakloci = detect_peaks.detect_peaks(A_1[i],mph=0.15*numpy.square((sens_FindPeaks/50)-2)*maxamp,mpd=3)
         peakampi = A_1[i][peakloci]
@@ -335,6 +335,19 @@ if __name__ == '__main__':
     lst = numpy.sort(SV)
     disp(lst)
     
+            
+    disp(' ')
+    disp(' ')
+    disp('     ----------------- Ergebnisse der Analyse -----------------')
+    disp(['            beste Strategie: ', SID[srt[-1]]])
+    disp(['       zweitbeste Strategie: ', SID[srt[-2]]])
+    disp(['       drittbeste Strategie: ', SID[srt[-3]]])
+    disp(['       viertbeste Strategie: ', SID[srt[-4]]])
+    disp(['      fuenftbeste Strategie: ', SID[srt[-5]]])
+    disp('     ----------------------------------------------------------')
+    disp(' ')
+    disp(' ')
+        
     if doplots:
         plt.figure()
         plt.subplot(2,1,1)
@@ -364,21 +377,8 @@ if __name__ == '__main__':
         plt.xlabel('Frequency (Hz)')
         plt.ylabel('Time (s)')
 
-        plt.show(block = False)
-        
-    disp(' ')
-    disp(' ')
-    disp('     ----------------- Ergebnisse der Analyse -----------------')
-    disp(['            beste Strategie: ', SID[srt[-1]]])
-    disp(['       zweitbeste Strategie: ', SID[srt[-2]]])
-    disp(['       drittbeste Strategie: ', SID[srt[-3]]])
-    disp(['       viertbeste Strategie: ', SID[srt[-4]]])
-    disp(['      fuenftbeste Strategie: ', SID[srt[-5]]])
-    disp('     ----------------------------------------------------------')
-    disp(' ')
-    disp(' ')
-        
-        
+        plt.show(block = True)
+    
     pass
     #disp(timevariantpeaks)
     #disp(timeinvariantpeaks)
