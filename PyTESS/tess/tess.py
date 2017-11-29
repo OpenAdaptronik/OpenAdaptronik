@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
-    doplots = True
+    doplots = False # for debugging
     measurementdataFILENAME = 'C:\\Users\\stoll\\Desktop\\openadaptronik\\TESS\\Data\\measurement_data.mat'
     tfFILENAME = 'TF.mat'
     analysisweightsFILENAME = 'C:\\Users\\stoll\\Desktop\\openadaptronik\\TESS\\Data\\analysisweights.csv'
@@ -54,7 +54,10 @@ if __name__ == '__main__':
                                     # | 0% -> the amp level in the HFD is virtually never considered unproblematic
                                     # | 100% -> the amp level in the HFD is very easily considered unproblematic
     SV = numpy.zeros(17)
+    
+    # reading data from file ... put database request here:
     measurementdata = scipy.io.loadmat(measurementdataFILENAME);
+    
     # solution identifiers
     SID = []
     SID.append('System Verstimmen, passiv')
@@ -75,6 +78,8 @@ if __name__ == '__main__':
     SID.append('Elastische Lagerung, aktiv')
     SID.append('Inertialmassenaktor IMA')
     
+    
+    # CSV-Datei mit den Bewertungsgewichten/Parametern einlesen
     analysisweights = []
     with open(analysisweightsFILENAME) as csvfile:
         rd = csv.reader(csvfile)
@@ -82,7 +87,8 @@ if __name__ == '__main__':
             analysisweights.append(row)
     del analysisweights [0]
     analysisweights = transpose([[float(j) for j in i] for i in analysisweights])
-    #checken, ob gleich formatiert, abgetastet, ...
+    
+    # hier noch checken, ob gleich formatiert, abgetastet, ...
     t = measurementdata['t'][0]
     a_0 = measurementdata['a_0'][0]
     a_1 = measurementdata['a_1'][0]
@@ -116,7 +122,8 @@ if __name__ == '__main__':
     peakloc = [0]*len(tout)
     gap = [[]]*len(tout)
     collectivepeaks = [[]]*len(tout)
-    ispeakfromTF = [False]*len(tout)
+    ispeakfromTF = [[]]*len(tout)
+    
     for i in range(len(tout)):
         peakloci = detect_peaks.detect_peaks(A_1[i],mph=0.15*numpy.square((sens_FindPeaks/50)-2)*maxamp,mpd=3)
         peakampi = A_1[i][peakloci]
@@ -125,46 +132,40 @@ if __name__ == '__main__':
         collectivepeaks[i] = []
         
         if len(peakloci)==0:
-            collectivepeaks[i].append(0)
+            #collectivepeaks[i].append(0)
             ispeakfromTF[i] = [NaN]
             gap[i] = []
         elif len(peakloci)==1:
             numrealpeaks[i] = 1;
-            collectivepeaks[i] = [peakloci[0]];
-            ispeakfromTF[i] = [((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)]
+            collectivepeaks[i] = [[peakloci[0]]];
+            ispeakfromTF[i] = [[((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)]]
             peakloc_ind[peakloci[0]] = True;
             gap[i] = []
         else:
             numrealpeaks[i] = 1
-            collectivepeaks[i] = [peakloci[0]]
-            ispeakfromTF[i] = [((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)]
-            kk=1
+            collectivepeaks[i] = [[peakloci[0]]]
+            ispeakfromTF[i] = [[((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)]]
             for j in range(len(peakloci)-1):
                 freesp = helpers.findfreespace(A_1[i], f, f[[peakloci[j], peakloci[j+1]]], problvl);
                 gap[i].append(freesp)
-                if (f[peakloci[j]] - f[peakloci[j]] > -10*(sens_SumUpPeaks/50+20)) & (gap[i][j][0] != 0):
+                if (f[peakloci[j+1]] - collectivepeaks[i][-1] > -10*(sens_SumUpPeaks/50+20)) & (gap[i][j][0] != 0):
                     numrealpeaks[i] = numrealpeaks[i] + 1
-                    kk = 1
                     collectivepeaks[i].append([peakloci[j+1]])
                     ispeakfromTF[i].append([((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)])
                     pass
                 else:
-                    collectivepeaks[i][numrealpeaks[i]-1].append(peakloci[j+1])
-                    ispeakfromTF[i][numrealpeaks[i]-1].append(((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4))
-                    
-                    
-                    kk = kk+1
+                    collectivepeaks[i][-1].append(peakloci[j+1])
+                    ispeakfromTF[i][-1].append(((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4))
                     
                     pass
                 peakloc_ind[peakloci[j]] = True;
             pass
         
 
-    isrealpeakfromTF = []
+    isrealpeakfromTF = [[]]*len(tout)
     for i in range(len(tout)):
         realpeakloc.append([0]*numrealpeaks[i])
         if numrealpeaks[i]>0:
-            isrealpeakfromTF.append([])
             for j in range(numrealpeaks[i]):
                 realpeakloc[i][j]=numpy.mean(f[collectivepeaks[i][j]])
                 if len(ispeakfromTF[i])>0:
@@ -176,17 +177,17 @@ if __name__ == '__main__':
                         pass
                     pass
                 else:
-                    isrealpeakfromTF[i].append([.95]);
+                    isrealpeakfromTF[i].append(.95);
                     pass
                 pass
             pass
         else:
-            isrealpeakfromTF.append([.95])
+            isrealpeakfromTF[i] = [.95]
             pass
             
         pass
     
-    meannumrealpeaks = numpy.sum(numrealpeaks)/(len(numpy.where(numrealpeaks>0)))
+    meannumrealpeaks = numpy.mean(numrealpeaks[numpy.where(numrealpeaks>0)])
 
     if meannumrealpeaks > 1.1:
         multiplepeaks = True
@@ -217,11 +218,11 @@ if __name__ == '__main__':
     lowampmap = A_1<problvl
     for pl in range(len(f)):
         tvpeak = False
-        low_doration = 0
+        low_duration = 0
         for tl in range(len(tout)):
             if lowampmap[tl][pl]:
-                low_doration += 1
-                if low_doration*(tout[1]-tout[0])>lowampot_duration:
+                low_duration += 1
+                if low_duration*(tout[1]-tout[0])>lowampot_duration:
                     tvpeak = True
                     pass
                 pass
@@ -245,9 +246,9 @@ if __name__ == '__main__':
     
     meanpeakstimevariant=[]           
     for i in range(len(isrealpeaktimevariant)):
-        meanpeakstimevariant.append(numpy.mean(isrealpeaktimevariant[i]))
+        meanpeakstimevariant.append(numpy.nanmean(isrealpeaktimevariant[i]))
         
-    if numpy.mean(meanpeakstimevariant) >= 0.05:
+    if numpy.nanmean(meanpeakstimevariant) >= 0.05:
         timevariantbehavior = True
         SV = SV + analysisweights[4]
     else:
