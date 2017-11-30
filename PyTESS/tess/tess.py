@@ -200,10 +200,10 @@ if __name__ == '__main__':
     
     
     for i in range(len(tout)):
-        meanpeaksfromtf[i] = numpy.mean(isrealpeakfromTF[i])
+        meanpeaksfromtf[i] = numpy.nanmean(isrealpeakfromTF[i])
         pass
     
-    if numpy.mean(meanpeaksfromtf) >= 0.95:
+    if numpy.nanmean(meanpeaksfromtf) >= 0.95:
         allpeaksfromtf = True
         SV = SV + analysisweights[2]
     else:
@@ -332,9 +332,7 @@ if __name__ == '__main__':
         SV = SV + analysisweights[11]
     
     srt = numpy.argsort(SV)
-    disp(srt)
     lst = numpy.sort(SV)
-    disp(lst)
     
             
     disp(' ')
