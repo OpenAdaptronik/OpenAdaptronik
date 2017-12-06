@@ -6,20 +6,17 @@ Created on 10.11.2017
 
 import csv
 
-from numpy import NaN, argwhere, transpose
+from numpy import argwhere, transpose
 import numpy
 from scipy import disp
 import scipy.io
 import waterfalls
-import detect_peaks
 import helpers
-
-import matplotlib.pyplot as plt
 
 
 if __name__ == '__main__':
-    doplots = False # for debugging
-    measurementdataFILENAME = 'C:\\Users\\stoll\\Desktop\\openadaptronik\\TESS\\Data\\measurement_data.mat'
+    
+    measurementdataFILENAME = 'C:\\Users\\stoll\\Desktop\\openadaptronik\\TESS\\Data\\MMS_Messdaten_Sim.mat'
     tfFILENAME = 'TF.mat'
     analysisweightsFILENAME = 'C:\\Users\\stoll\\Desktop\\openadaptronik\\TESS\\Data\\analysisweights.csv'
     DesiredAmpLevel = 8
@@ -88,106 +85,35 @@ if __name__ == '__main__':
     del analysisweights [0]
     analysisweights = transpose([[float(j) for j in i] for i in analysisweights])
     
-    # hier noch checken, ob gleich formatiert, abgetastet, ...
+
+
     t = measurementdata['t'][0]
     a_0 = measurementdata['a_0'][0]
     a_1 = measurementdata['a_1'][0]
-    A_0, f, tout = waterfalls.waterfall(t,a_0,512)
-    A_1, f, tout = waterfalls.waterfall(t,a_1,512)
+    A_0, f, tout = waterfalls.waterfall(t,a_0,256, overlap=.5)
+    A_1, f, tout = waterfalls.waterfall(t,a_1,256, overlap=.5)
     tfmat = numpy.divide(A_1,A_0)
     tf = numpy.average(tfmat, 0, A_0)
     
-    iValidF = numpy.array(numpy.where(f >= MinFrequency))
+    iValidF = numpy.where(f >= MinFrequency)
     
     ifmin = argwhere(f>=MinFrequency)[0];
     
-    #f_fft_rec_max_mod = f[iValidF]
     fft_rec_max_mod = A_1[:, iValidF].flatten()
     
-    top10 = [0]*10
-    for i in range(10):
-        imax = numpy.nanargmax(fft_rec_max_mod, axis=0)
-        mmax = numpy.nanmax(fft_rec_max_mod, axis=0)
-        top10[i] = fft_rec_max_mod[imax]
-        fft_rec_max_mod[imax]=NaN
-    maxamp = numpy.median(top10)
+    
+    
+    # max occuring amplitude (median of top 10 maximum amplitudes)
+    lst = numpy.sort(fft_rec_max_mod)
+    maxamp = numpy.median(lst[-10:-1])
+    
+    # problematic level used as reference
     problvl = (DesiredAmpLevel/100)*maxamp
     
-    peakloc_ind = [False]*len(f)
-    factor = 1.5
-    realpeakloc = []
-    numrealpeaks = numpy.array([0]*len(tout))
-    isrealpeakfromTF = []
-    peakamp = [0]*len(tout)
-    peakloc = [0]*len(tout)
-    gap = [[]]*len(tout)
-    collectivepeaks = [[]]*len(tout)
-    ispeakfromTF = [[]]*len(tout)
     
-    for i in range(len(tout)):
-        peakloci = detect_peaks.detect_peaks(A_1[i],mph=0.15*numpy.square((sens_FindPeaks/50)-2)*maxamp,mpd=3)
-        peakampi = A_1[i][peakloci]
-        peakloc[i] = f[peakloci]
-        peakamp[i] = peakampi
-        collectivepeaks[i] = []
-        
-        if len(peakloci)==0:
-            #collectivepeaks[i].append(0)
-            ispeakfromTF[i] = [NaN]
-            gap[i] = []
-        elif len(peakloci)==1:
-            numrealpeaks[i] = 1;
-            collectivepeaks[i] = [[peakloci[0]]];
-            ispeakfromTF[i] = [[((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)]]
-            peakloc_ind[peakloci[0]] = True;
-            gap[i] = []
-        else:
-            numrealpeaks[i] = 1
-            collectivepeaks[i] = [[peakloci[0]]]
-            ispeakfromTF[i] = [[((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)]]
-            for j in range(len(peakloci)-1):
-                freesp = helpers.findfreespace(A_1[i], f, f[[peakloci[j], peakloci[j+1]]], problvl);
-                gap[i].append(freesp)
-                if (f[peakloci[j+1]] - collectivepeaks[i][-1] > -10*(sens_SumUpPeaks/50+20)) & (gap[i][j][0] != 0):
-                    numrealpeaks[i] = numrealpeaks[i] + 1
-                    collectivepeaks[i].append([peakloci[j+1]])
-                    ispeakfromTF[i].append([((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4)])
-                    pass
-                else:
-                    collectivepeaks[i][-1].append(peakloci[j+1])
-                    ispeakfromTF[i][-1].append(((peakampi[0]/(factor*(sens_TFOrigin/50)*tf[peakloci[0]])) < problvl) & (tf[peakloci[0]] > -2*(sens_TFOrigin/50)+4))
-                    
-                    pass
-                peakloc_ind[peakloci[j]] = True;
-            pass
-        
-
-    isrealpeakfromTF = [[]]*len(tout)
-    for i in range(len(tout)):
-        realpeakloc.append([0]*numrealpeaks[i])
-        if numrealpeaks[i]>0:
-            for j in range(numrealpeaks[i]):
-                realpeakloc[i][j]=numpy.mean(f[collectivepeaks[i][j]])
-                if len(ispeakfromTF[i])>0:
-                    if numpy.mean(ispeakfromTF[i][j])<= .5:
-                        isrealpeakfromTF[i].append(0)
-                        pass
-                    else:
-                        isrealpeakfromTF[i].append(1)
-                        pass
-                    pass
-                else:
-                    isrealpeakfromTF[i].append(.95);
-                    pass
-                pass
-            pass
-        else:
-            isrealpeakfromTF[i] = [.95]
-            pass
-            
-        pass
+    # finding real peaks in measurement data and determine origin
+    peakloc_ind, collectivepeaks, numrealpeaks, meannumrealpeaks, realpeakloc, isrealpeakfromTF = helpers.findRealPeaks(A_1, tf, f, iValidF, sens_FindPeaks, sens_TFOrigin, sens_SumUpPeaks, maxamp, problvl)
     
-    meannumrealpeaks = numpy.mean(numrealpeaks[numpy.where(numrealpeaks>0)])
 
     if meannumrealpeaks > 1.1:
         multiplepeaks = True
@@ -209,40 +135,8 @@ if __name__ == '__main__':
     else:
         allpeaksfromtf = False
         SV = SV + analysisweights[3]
-        
-        
-    lowampot = [False]*len(f) 
     
-    lowampot_duration = round(-20*(sens_TimevariantBehavior/50)+40)
-    ##
-    lowampmap = A_1<problvl
-    for pl in range(len(f)):
-        tvpeak = False
-        low_duration = 0
-        for tl in range(len(tout)):
-            if lowampmap[tl][pl]:
-                low_duration += 1
-                if low_duration*(tout[1]-tout[0])>lowampot_duration:
-                    tvpeak = True
-                    pass
-                pass
-            pass
-        lowampot[pl] = tvpeak
-        pass
-    
-    timevariantpeaks = numpy.array(peakloc_ind) & numpy.array(lowampot)
-    timeinvariantpeaks = numpy.array(peakloc_ind) & ~numpy.array(lowampot)
-    
-    ispeaktimevariant=[[[]]]
-    isrealpeaktimevariant=[[]]
-    
-    for i in range(len(numrealpeaks)):
-        ispeaktimevariant.append([])
-        isrealpeaktimevariant.append([])
-        if numrealpeaks[i]>0:
-            for j in range(numrealpeaks[i]):
-                ispeaktimevariant[i].append(collectivepeaks[i][j])
-                isrealpeaktimevariant[i].append(numpy.round(numpy.mean(collectivepeaks[i][j])))
+    isrealpeaktimevariant = helpers.analyseTimeVariance(A_1, f, collectivepeaks, sens_TimevariantBehavior, peakloc_ind, problvl)
     
     meanpeakstimevariant=[]           
     for i in range(len(isrealpeaktimevariant)):
@@ -255,59 +149,9 @@ if __name__ == '__main__':
         timevariantbehavior = False
         SV = SV + analysisweights[5]
         
-        
+    islfdunproblematic, ishfdunproblematic, isnfdunproblematic = helpers.analyseFDAmplitude(A_1, f, iValidF, realpeakloc, numrealpeaks, multiplepeaks, sens_UnproblematicLFD, sens_UnproblematicHFD, sens_UnproblematicNFD, problvl)
+    
     # Analysis of Amplitude Level
-
-    minfreespaceLFD = -50*(sens_UnproblematicLFD/50)+105; # min frequency range that has to be free so that the low frequency domain is considered unproblematic
-    minfreespaceHFD = -50*(sens_UnproblematicHFD/50)+105; # min frequency range that has to be free so that the high frequency domain is considered unproblematic
-    minfreespaceNFD = -30*(sens_UnproblematicNFD/50)+31;  # min frequency range (to each side of the respective peak) that has to be free so that the peak neighboring frequency domain is considered unproblematic
-    
-    LFDsize = 120;  # determines the size of the examined low frequency domain if there is no peak
-    HFDsize = 120;  # determines the size of the examined high frequency domain if there is no peak
-    NFDsize = 80;   # determines how far the examined peak neighboring frequency domain reaches to each side of the peak in Hz
-
-    firstpeakpos = []
-    lastpeakpos = []
-    freespace_lfd = []
-    freespace_hfd = []    
-    islfdunproblematic = []
-    ishfdunproblematic = []
-    freespace_r = []
-    freespace_l = []
-    isnfdunproblematic = []
-    
-    for i in range(len(tout)):
-        if numrealpeaks[i]>0:
-            firstpeakpos.append(realpeakloc[i][0])
-            lastpeakpos.append(realpeakloc[i][-1])
-        else:
-            firstpeakpos.append(LFDsize)
-            lastpeakpos.append(f[-1]-HFDsize)
-        
-       
-        freespace_lfd.append(helpers.findfreespace(A_1[i][iValidF], f[iValidF], [MinFrequency, firstpeakpos[i]], problvl))
-        if (freespace_lfd[i][1]-freespace_lfd[i][0]) >= minfreespaceLFD:
-            islfdunproblematic.append(True)
-        else:
-            islfdunproblematic.append(False)
-        
-        freespace_hfd.append(helpers.findfreespace(A_1[i][iValidF], f[iValidF], [lastpeakpos[i], f[-1]], problvl))
-        if (freespace_hfd[i][1]-freespace_hfd[i][0]) >= minfreespaceHFD:
-            ishfdunproblematic.append(True)
-        else:
-            ishfdunproblematic.append(False)
-        
-        freespace_r.append([])
-        freespace_l.append([])
-        isnfdunproblematic.append(True)
-        if ~multiplepeaks:
-            if numrealpeaks[i]==1:
-                freespace_r[i] = helpers.findfreespace(A_1[i][iValidF], f[iValidF], [realpeakloc[i][0], realpeakloc[i][0]+NFDsize], problvl)
-                freespace_l[i] = helpers.findfreespace(A_1[i][iValidF], f[iValidF], [realpeakloc[i][0]-NFDsize, realpeakloc[i][0]], problvl);
-                if (freespace_r[i][1]-freespace_r[i][0] < minfreespaceNFD) | (freespace_l[i][1]-freespace_l[i][0] < minfreespaceNFD):
-                    isnfdunproblematic[i] = False
-            elif numrealpeaks[i] > 1:
-                isnfdunproblematic[i] = False
     
     if numpy.mean(islfdunproblematic) >= .95:
         lfdunproblematic = True
@@ -338,58 +182,11 @@ if __name__ == '__main__':
     disp(' ')
     disp(' ')
     disp('     ----------------- Ergebnisse der Analyse -----------------')
-    disp(['            beste Strategie: ', SID[srt[-1]]])
-    disp(['       zweitbeste Strategie: ', SID[srt[-2]]])
-    disp(['       drittbeste Strategie: ', SID[srt[-3]]])
-    disp(['       viertbeste Strategie: ', SID[srt[-4]]])
-    disp(['      fuenftbeste Strategie: ', SID[srt[-5]]])
+    disp(''.join(['            beste Strategie: ', SID[srt[-1]], ', ', str(SV[srt[-1]]) ]))
+    disp(''.join(['       zweitbeste Strategie: ', SID[srt[-2]], ', ', str(SV[srt[-2]]) ]))
+    disp(''.join(['       drittbeste Strategie: ', SID[srt[-3]], ', ', str(SV[srt[-3]]) ]))
+    disp(''.join(['       viertbeste Strategie: ', SID[srt[-4]], ', ', str(SV[srt[-4]]) ]))
+    disp(''.join(['      fuenftbeste Strategie: ', SID[srt[-5]], ', ', str(SV[srt[-5]]) ]))
     disp('     ----------------------------------------------------------')
     disp(' ')
-    disp(' ')
-        
-    if doplots:
-        plt.figure()
-        plt.subplot(2,1,1)
-        plt.plot(t,a_1)
-        plt.title('a_1')
-        plt.xlabel('Time (s)')
-        
-        plt.subplot(2,1,2)
-        plt.plot(t,a_0)
-        plt.title('a_0')
-        plt.xlabel('Time (s)')
-        
-        plt.figure()
-        plt.plot(f,tf)
-        plt.title('TF')
-        plt.xlabel('Frequency (Hz)')
-        
-        plt.figure()
-        plt.pcolor(f, tout, A_1)
-        plt.title('A_1')
-        plt.xlabel('Frequency (Hz)')
-        plt.ylabel('Time (s)')
-        
-        plt.figure()
-        plt.pcolor(f, tout, A_0)
-        plt.title('A_0')
-        plt.xlabel('Frequency (Hz)')
-        plt.ylabel('Time (s)')
-
-        plt.show(block = True)
-    
-    pass
-    #disp(timevariantpeaks)
-    #disp(timeinvariantpeaks)
-    #disp(isrealpeakfromTF)    
-        
-    #disp(peakloc_ind)
-    #disp(numrealpeaks)
-    #disp(peakamp)
-    #disp(peakloc)
-    #disp(gap)
-    #disp(collectivepeaks)
-    #disp(ispeakfromTF)
-    #disp(realpeakloc)
-    #disp(SV)
-    pass    
+    disp(' ') 
