@@ -1,0 +1,1 @@
+Hier ist der Programmcode für einen Frequenzgenerator mittels eines Arduinos. Der Aufbau und Umsetzung ist unter "https://www.openadaptronik.de/2018/01/16/bau-eines-guenstige-frequenzgenerators-mittels-arduino/" zu finden.
