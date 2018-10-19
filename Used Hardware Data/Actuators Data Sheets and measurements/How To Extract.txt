@@ -1,0 +1,9 @@
+For the MATLAB Data only!
+
+Copy the following code into Matlab. It results the data in x & y Arrays for further usage.
+
+obj = get(gca,'Children')
+x = get(obj,'XData')
+y = get(obj,'YData')
+
+For VEUSZ Data visit https://veusz.github.io/ to download the application.
