@@ -12,7 +12,7 @@ These files enable a spectral analysis of time domain data with Python using the
 ## Further needed
 Time data! <br /> 
 Either acquired with [Phyphox](https://phyphox.org/)  (great package for DIY signal acquisition with smartphones) or our 
-OpenAdaptronik DIY vibration data logger (sse under "hardware")
+OpenAdaptronik DIY vibration data logger (see under "Open hardware" in this repo)
 
 ## Files
 * DIY_RDAnalysis.py: GUI 
