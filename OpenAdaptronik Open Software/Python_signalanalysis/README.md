@@ -14,6 +14,8 @@ Time data! <br />
 Either acquired with [Phyphox](https://phyphox.org/)  (great package for DIY signal acquisition with smartphones) or our 
 OpenAdaptronik DIY vibration data logger (see under "Open hardware" in this repo)
 
+Phyphox: Use "tabulator, decimal point" export from the acceleration time series (Beschleunigung ohne g) experiment.
+
 ## Files
 * DIY_RDAnalysis.py: GUI 
 * rd_estim.py: function to calculate the RD signature from a time series
