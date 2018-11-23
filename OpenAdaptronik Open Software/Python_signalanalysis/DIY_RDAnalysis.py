@@ -1,8 +1,6 @@
 """ Try to embed the RD estimation and plotting int PyQT5 """
 import sys
-
 import numpy as np
-import pyqtgraph as pg
 import scipy as sp
 from PyQt5.QtCore import QRect, Qt
 from PyQt5.QtGui import QIcon
@@ -10,36 +8,33 @@ from PyQt5.QtWidgets import (QAction, QApplication, QCheckBox, QFileDialog,
                              QGridLayout, QHBoxLayout, QLabel, QLineEdit,
                              QMainWindow, QPushButton, QRadioButton, QSlider,
                              QSpinBox, QVBoxLayout, QWidget, qApp)
-
+import pyqtgraph as pg
+import pyqtgraph.exporters
 import decimate_filter
 import rd_estim
 
 """ Set some global parameters"""
 frame_size = 1024*30
 pre_time = 0.2
-
 cutoff_highpass = 5.0*2*np.pi
-
 RD_order = 256*2
 trigger_level = 0.01
 mirror = 1
-
-global counter
-counter = 1.0
-
 raw_data = []
 RD_sequence = np.zeros(RD_order)
 
+global counter
+counter = 1.0
 global win
 global p0
 global c0
 
 """ Open PyQtGraphWindow"""
-win=pg.GraphicsWindow(title="Data Window")
+win = pg.GraphicsWindow(title="Data Window")
 pg.setConfigOptions(antialias=True)
 """ Plot: Acquired data with zoom window"""
 p0 = win.addPlot(title="Time Data")
-c0 = p0.plot([0,1],[0,0])
+c0 = p0.plot([0, 1], [0, 0])
 limits = pg.LinearRegionItem()
 p0.addItem(limits)
 win.nextRow()
@@ -51,8 +46,6 @@ p2 = win.addPlot(title="Random Decrement Estimation")
 win.nextRow()
 """ Autopower spectrum"""
 p3 = win.addPlot(title="Autopower Spectrum")
-
-
 
 class AppForm(QMainWindow):
 
@@ -76,31 +69,31 @@ class AppForm(QMainWindow):
         self.activeaxis = 'z'
         self.time_zoom = [0, 0]
 
-    def save_plot(self):
-        file_choices = "PNG (*.png)|*.png"
-
-        path = (QFileDialog.getSaveFileName(self,
-                        'Save file', '',
-                        file_choices))
-        if path:
-            exporter = pg.exporters.ImageExporter(p1)
-            exporter.export(path)
+#   def save_plot(self):
+#      file_choices = "PNG (*.png)|*.png"
+#
+#        path = (QFileDialog.getSaveFileName(self,
+#                                            'Save file', '',
+#                                            file_choices))
+#        if path:
+#            exporter = pg.exporters.ImageExporter(p1)
+#            exporter.export(path)
 
     def import_csv_OA(self):
         filename, _ = QFileDialog.getOpenFileName(self, 'Open File')
         self.windowtitle = filename
 
-        csv_header = np.genfromtxt(filename, delimiter = ',',max_rows = 10)
+        csv_header = np.genfromtxt(filename, delimiter=',', max_rows=10)
 
-        amplitude_factor = csv_header[8,1]
-        sampling_factor = csv_header[6,1]
+        amplitude_factor = csv_header[8, 1]
+        sampling_factor = csv_header[6, 1]
 
-        csv_data = np.genfromtxt(filename, delimiter = ',',skip_header = 10)
+        csv_data = np.genfromtxt(filename, delimiter=',', skip_header=10)
 
-        self.time_vec = csv_data[1:,0]*1E-6
-        self.x_vec = csv_data[1:,1]*amplitude_factor/2.0**15
-        self.y_vec = csv_data[1:,2]*amplitude_factor/2.0**15
-        self.z_vec = csv_data[1:,3]*amplitude_factor/2.0**15
+        self.time_vec = csv_data[1:, 0]*1E-6
+        self.x_vec = csv_data[1:, 1]*amplitude_factor/2.0**15
+        self.y_vec = csv_data[1:, 2]*amplitude_factor/2.0**15
+        self.z_vec = csv_data[1:, 3]*amplitude_factor/2.0**15
 
         """ Set the sampling rate"""
         self.rate_in = sampling_factor
@@ -114,11 +107,11 @@ class AppForm(QMainWindow):
         filename, _ = QFileDialog.getOpenFileName(self, 'Open File')
         self.windowtitle = filename
 
-        csv_data = np.genfromtxt(filename, delimiter = '\t')
-        self.time_vec = csv_data[1:,0]
-        self.x_vec = csv_data[1:,1]
-        self.y_vec = csv_data[1:,2]
-        self.z_vec = csv_data[1:,3]
+        csv_data = np.genfromtxt(filename, delimiter='\t')
+        self.time_vec = csv_data[1:, 0]
+        self.x_vec = csv_data[1:, 1]
+        self.y_vec = csv_data[1:, 2]
+        self.z_vec = csv_data[1:, 3]
 
         """ Estimate the sampling rate"""
         t_jitter = -self.time_vec[0:len(self.time_vec)-1]+self.time_vec[1:len(self.time_vec)]
@@ -136,7 +129,6 @@ class AppForm(QMainWindow):
 
     def on_exit(self):
         win.close()
-        """app.closeAllWindows()"""
         qApp.quit
         sys.exit()
 
@@ -168,16 +160,13 @@ class AppForm(QMainWindow):
         upper_limit = (np.abs(self.time_vec-self.time_zoom[1])).argmin()
 
         """get RD order from textbox"""
-        str = self.RDTextbox.text()
-        RD_order = int(str)
-        """get Decimation factor from textbox"""
-        str = self.spinBox.text()
-
+        RD_input = self.RDTextbox.text()
+        RD_order = int(RD_input)
+        """get Decimation factor from spinbox"""
         dec_factor = self.spinBox.value()
         rate_down = self.rate_in/dec_factor
 
         """ design a highpass filter"""
-
         num_highpass_s = [1.0, 0]
         den_highpass_s = [1.0, cutoff_highpass]
 
@@ -216,6 +205,9 @@ class AppForm(QMainWindow):
             decimated_data = compensated_data
 
         data_time = np.arange(0, float(len(decimated_data))/rate_down, 1.0/rate_down)
+        
+        if len(data_time) > len(decimated_data):
+            data_time = data_time[0:len(decimated_data)]
 
         self.statusBar().showMessage('RD Estimation')
 
@@ -258,8 +250,7 @@ class AppForm(QMainWindow):
         self.main_frame = QWidget()
 
         # Create the navigation toolbar, tied to the canvas
-        # Other GUI controls
-        
+        # Other GUI controls    
         """RD order"""
         RDTextbox_label = QLabel('RD order:')
         self.RDTextbox = QLineEdit()
@@ -323,27 +314,27 @@ class AppForm(QMainWindow):
         grid_box.addWidget(radiobutton, 2, 0)
 
         """ Infoboxes Input Data"""
-        grid_box.addWidget(Sampling_label, 0,1)
-        grid_box.addWidget(self.Sampling_textbox, 1,1)
+        grid_box.addWidget(Sampling_label, 0, 1)
+        grid_box.addWidget(self.Sampling_textbox, 1, 1)
 
-        grid_box.addWidget(RecLength_label, 0,2)
-        grid_box.addWidget(self.RecLength_textbox, 1,2)
+        grid_box.addWidget(RecLength_label, 0, 2)
+        grid_box.addWidget(self.RecLength_textbox, 1, 2)
 
         control_box.addLayout(grid_box)
 
         """ Signal Processing"""
-        grid_box.addWidget(checkbox_label, 0,3)
-        grid_box.addWidget(self.checkbox, 1,3)
+        grid_box.addWidget(checkbox_label, 0, 3)
+        grid_box.addWidget(self.checkbox, 1, 3)
 
-        grid_box.addWidget(spinBox_label, 0,4)
-        grid_box.addWidget(self.spinBox, 1,4)
+        grid_box.addWidget(spinBox_label, 0, 4)
+        grid_box.addWidget(self.spinBox, 1, 4)
 
         """ RD Estimation"""
-        grid_box.addWidget(slider_label, 0,5)
-        grid_box.addWidget(self.slider, 1,5)
+        grid_box.addWidget(slider_label, 0, 5)
+        grid_box.addWidget(self.slider, 1, 5)
 
-        grid_box.addWidget(RDTextbox_label, 0,6)
-        grid_box.addWidget(self.RDTextbox, 1,6)
+        grid_box.addWidget(RDTextbox_label, 0, 6)
+        grid_box.addWidget(self.RDTextbox, 1, 6)
 
         control_box.addWidget(self.draw_button)
 
@@ -380,11 +371,11 @@ class AppForm(QMainWindow):
         """estimate RD signature and draw"""
         importAction_OA.triggered.connect(self.on_draw)
 
-        """Save a plot"""
-        SaveFileAction = QAction(QIcon('filesave.png'), '&Save plot', self)
-        SaveFileAction.setShortcut('Ctrl+S')
-        SaveFileAction.setStatusTip('Save the plot')
-        SaveFileAction.triggered.connect(self.save_plot)
+#        """Save a plot"""
+#        SaveFileAction = QAction(QIcon('filesave.png'), '&Save plot', self)
+#        SaveFileAction.setShortcut('Ctrl+S')
+#        SaveFileAction.setStatusTip('Save the plot')
+#        SaveFileAction.triggered.connect(self.save_plot)
 
         """ Trigger Menu"""
         TriggerLevelCrossingAction = QAction('&Level Crossing', self)
@@ -408,7 +399,7 @@ class AppForm(QMainWindow):
         self.fileMenu.addAction(exitAction)
         self.fileMenu.addAction(importAction_OA)
         self.fileMenu.addAction(importAction_PP)
-        self.fileMenu.addAction(SaveFileAction)
+#        self.fileMenu.addAction(SaveFileAction)
 
         self.triggerMenu = menubar.addMenu("&Trigger")
         self.triggerMenu.addAction(TriggerLevelCrossingAction)
